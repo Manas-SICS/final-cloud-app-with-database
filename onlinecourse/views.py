@@ -1,6 +1,5 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
-# <HINT> Import any new Models here
 from .models import Course, Enrollment, Question, Choice, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
@@ -8,9 +7,8 @@ from django.urls import reverse
 from django.views import generic
 from django.contrib.auth import login, logout, authenticate
 import logging
-# Get an instance of a logger
+
 logger = logging.getLogger(__name__)
-# Create your views here.
 
 
 def registration_request(request):
@@ -18,7 +16,6 @@ def registration_request(request):
     if request.method == 'GET':
         return render(request, 'onlinecourse/user_registration_bootstrap.html', context)
     elif request.method == 'POST':
-        # Check if user exists
         username = request.POST['username']
         password = request.POST['psw']
         first_name = request.POST['firstname']
@@ -63,14 +60,11 @@ def logout_request(request):
 def check_if_enrolled(user, course):
     is_enrolled = False
     if user.id is not None:
-        # Check if user enrolled
         num_results = Enrollment.objects.filter(user=user, course=course).count()
         if num_results > 0:
             is_enrolled = True
     return is_enrolled
 
-
-# CourseListView
 class CourseListView(generic.ListView):
     template_name = 'onlinecourse/course_list_bootstrap.html'
     context_object_name = 'course_list'
@@ -95,7 +89,6 @@ def enroll(request, course_id):
 
     is_enrolled = check_if_enrolled(user, course)
     if not is_enrolled and user.is_authenticated:
-        # Create an enrollment
         Enrollment.objects.create(user=user, course=course, mode='honor')
         course.total_enrollment += 1
         course.save()
@@ -103,7 +96,6 @@ def enroll(request, course_id):
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
 
-# A method to collect the selected choices from the exam form from the request object
 def extract_answers(request):
    submitted_answers = []
    for key in request.POST:
@@ -115,15 +107,12 @@ def extract_answers(request):
 
 
 def submit(request, course_id):
-    # Getting the current user, course object and the user's enrollment
     user = request.user
     course = get_object_or_404(Course, id=course_id)
     enrollment = Enrollment.objects.get(user=user, course=course)
 
-    # Creating a new Submission object / Submission table entry in db
     submission = Submission.objects.create(enrollment=enrollment)
 
-    # Extracting the selected choices from the POST request
     submitted_answers = []
     for key in request.POST:
         if key.startswith('choice'):
@@ -131,14 +120,12 @@ def submit(request, course_id):
             choice_id = int(value)
             submitted_answers.append(choice_id)
 
-    # Adding the selected choices to the Submission table (model)
     for choice_id in submitted_answers:
         choice_obj = Choice.objects.get(id=choice_id)
         submission.choices.add(choice_obj)
-    submission.save()  # saving the changes
+    submission.save()
     print(f"Submitted exam for user {user} in course {course_id}")
 
-    # Redirecting to the show_exam_result view with the submission id
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id, submission.id)))
 
 
@@ -159,7 +146,6 @@ def show_exam_result(request, course_id, submission_id):
     all_exam_choices = [question.choice_set for question in all_exam_questions]
     print("All exam choices: \n", all_exam_choices)
 
-    # Calculate the submission score
     submission_score = 0
     max_score = 0
     for question in all_exam_questions:
@@ -167,7 +153,6 @@ def show_exam_result(request, course_id, submission_id):
         if question.answered_correctly(submission_choices):
             submission_score += question.marks
         
-    # Determine a grade (points are % correct, rounded to nearest whole integer)
     context['grade'] = round(submission_score / max_score * 100)
     print("Submission grade: ", submission_score)
 
